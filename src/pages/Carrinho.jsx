@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router'
-import SugestaoItem from '../components/SugestaoItem'
+import ProdutoCard from '../components/ProdutoCard'
 import { agruparItens, calcularTotal } from '../utils/carrinho'
 import { validarCupom } from '../utils/cupons'
 import { formatarPreco } from '../utils/formatarPreco'
@@ -12,14 +12,29 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
 
   const itens = agruparItens(carrinho)
   const total = calcularTotal(carrinho)
-  const totalComDesconto = cupomAplicado ? total * (1 - cupomAplicado.desconto) : total
+  const totalComDesconto = cupomAplicado
+    ? Math.round(total * (1 - cupomAplicado.desconto) * 100) / 100
+    : total
+
+  // Frete grátis somente se o valor FINAL superar R$ 200,00.
+  const centavosFinais = Math.round(totalComDesconto * 100)
+  const temFreteGratis = centavosFinais > 20000
+  const faltaParaFrete = Math.max(0, 20001 - centavosFinais) / 100
 
   const sugestoes = produtos
-    .filter((produto) => !carrinho.find((item) => item.id === produto.id))
+    .filter((produto) =>
+      produto.estoque > 0 &&
+      Number.isFinite(produto.price) &&
+      !carrinho.find((item) => item.id === produto.id)
+    )
     .slice(0, 3)
 
   function aplicarCupom(evento) {
     evento.preventDefault()
+    if (!clienteAtual) {
+      setMensagemCupom('Aguarde o carregamento dos clientes.')
+      return
+    }
     const resultado = validarCupom(codigoCupom, clienteAtual)
 
     if (resultado.valido) {
@@ -37,9 +52,7 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
         <h1>Carrinho</h1>
         <div className="estado-vazio">
           <p>Seu carrinho está vazio.</p>
-          <Link to="/" className="botao botao-secundario">
-            Ver produtos
-          </Link>
+          <Link to="/" className="botao botao-secundario">Ver produtos</Link>
         </div>
       </section>
     )
@@ -58,7 +71,7 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
               </div>
               <div className="item-info">
                 <p className="item-titulo">{item.produto.title}</p>
-                <p className="item-preco">R$ {item.produto.price}</p>
+                <p className="item-preco">{formatarPreco(item.produto.price)}</p>
               </div>
               <span className="item-quantidade">{item.quantidade} un.</span>
               <button className="botao-texto" onClick={() => onRemover(item.produto.id)}>
@@ -72,9 +85,7 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
           <h2 className="resumo-titulo">Resumo do pedido</h2>
 
           <form className="cupom" onSubmit={aplicarCupom}>
-            <label htmlFor="cupom" className="rotulo">
-              Cupom de desconto
-            </label>
+            <label htmlFor="cupom" className="rotulo">Cupom de desconto</label>
             <div className="cupom-campo">
               <input
                 id="cupom"
@@ -97,15 +108,24 @@ export default function Carrinho({ carrinho, produtos, clienteAtual, onAdicionar
             <span>Total</span>
             <span>{formatarPreco(totalComDesconto)}</span>
           </p>
+          <p className={temFreteGratis ? 'frete-mensagem frete-ok' : 'frete-mensagem'}>
+            {temFreteGratis
+              ? '✓ Seu pedido ganhou frete grátis!'
+              : `Faltam ${formatarPreco(faltaParaFrete)} para ganhar frete grátis.`}
+          </p>
         </aside>
       </div>
 
-      <h2>Você também pode gostar</h2>
-      <div className="sugestoes">
-        {sugestoes.map((produto) => (
-          <SugestaoItem key={produto.id} produto={produto} onAdicionar={onAdicionar} />
-        ))}
-      </div>
+      {sugestoes.length > 0 && (
+        <>
+          <h2>Você também pode gostar</h2>
+          <div className="grade">
+            {sugestoes.map((produto) => (
+              <ProdutoCard key={produto.id} produto={produto} onAdicionar={onAdicionar} />
+            ))}
+          </div>
+        </>
+      )}
     </section>
   )
 }

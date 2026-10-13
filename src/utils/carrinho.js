@@ -1,8 +1,11 @@
 // O carrinho guarda uma entrada por unidade adicionada.
-// Ex.: duas camisetas iguais = o mesmo produto duas vezes no array.
-
+// Somar centavos evita pequenos erros com números decimais.
 export function calcularTotal(carrinho) {
-  return carrinho.reduce((total, produto) => total + produto.price, 0)
+  const centavos = carrinho.reduce(
+    (total, produto) => total + Math.round(Number(produto.price) * 100),
+    0
+  )
+  return centavos / 100
 }
 
 export function agruparItens(carrinho) {
